@@ -28,13 +28,55 @@
             justify-content: center;
         }
 
+        #jeu-wrap {
+            position: relative;
+            line-height: 0;
+        }
+
         #jeu {
             display: block;
+        }
+
+        /* Real input so the phone keyboard opens on the home screen */
+        #pseudo-input {
+            position: absolute;
+            display: none;
+            border: none;
+            outline: none;
+            text-align: center;
+            font-family: "Press Start 2P", monospace;
+            color: #543847;
+            background: transparent;
+            padding: 0 8px;
+            box-sizing: border-box;
+            -webkit-user-select: text;
+            user-select: text;
+            touch-action: manipulation;
+        }
+
+        #pseudo-input.visible {
+            display: block;
+        }
+
+        #pseudo-input::placeholder {
+            color: #b3a97a;
         }
     </style>
 </head>
 <body>
-    <canvas id="jeu" width="288" height="512" tabindex="0"></canvas>
+    <div id="jeu-wrap">
+        <canvas id="jeu" width="288" height="512" tabindex="0"></canvas>
+        <input
+            id="pseudo-input"
+            type="text"
+            maxlength="12"
+            autocomplete="nickname"
+            enterkeyhint="go"
+            spellcheck="false"
+            autocapitalize="off"
+            placeholder="Ton pseudo"
+        >
+    </div>
     <script src="flappy.js"></script>
 </body>
 </html>

@@ -20,6 +20,8 @@ const DT_MAX = 0.05;
 
 const canvas = document.getElementById("jeu");
 const ctx = canvas.getContext("2d");
+const pseudoInput = document.getElementById("pseudo-input");
+const TOUCH_DEVICE = "ontouchstart" in window;
 
 const PODIUM_KEY = "flappy_podium";
 const PSEUDO_KEY = "flappy_pseudo";
@@ -60,7 +62,6 @@ const SKINS = [
 ];
 
 const SKIN_POPUP_DUREE = 2500;
-const SCORE_POPUP_DUREE = 1000;
 
 const FONT_PIXEL = '"Press Start 2P", monospace';
 const FONT_EMOJI = "Apple Color Emoji, Segoe UI Emoji, sans-serif";
@@ -131,7 +132,6 @@ let messageNourrirVisible = false;
 let nourrirFeedbackFin = 0;
 let nourrirErreurFin = 0;
 let nourrirErreurMsg = "";
-let scoreAfficheFin = 0;
 
 let tuyaux = [];
 
@@ -361,7 +361,6 @@ function ajouterScore(points) {
     scoreMaxPartie = Math.max(scoreMaxPartie, score);
     sauverMaxDeblocage(scoreMaxPartie);
     verifierNouveauxSkins(ancienMax, scoreMaxPartie);
-    scoreAfficheFin = Date.now() + SCORE_POPUP_DUREE;
 }
 
 function changerSkin(direction) {
@@ -496,7 +495,6 @@ function resetPartie() {
     nouveauBestScore = false;
     skinDebloquePopup = null;
     skinDebloqueFin = 0;
-    scoreAfficheFin = 0;
     reinitialiserTuyaux();
 }
 
@@ -510,7 +508,6 @@ function perdreVie() {
     nouveauBestScore = false;
     oiseauY = HEIGHT / 4;
     oiseauVY = 0;
-    scoreAfficheFin = 0;
     reinitialiserTuyaux();
 }
 
@@ -664,17 +661,89 @@ function dessinerPanneauPixel(fond) {
     ctx.fillRect(m + 6, m + 6, WIDTH - (m + 6) * 2, HEIGHT - (m + 6) * 2);
 }
 
+function yChampPseudoAccueil() {
+    const gap = 16;
+    const hChamp = 34;
+    const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_MAX);
+    const extraTouch = TOUCH_DEVICE ? gap + 13 : 0;
+    const hTotal = 24 + gap + hChamp + gap + 13 + gap + 13 + extraTouch + gap + hPodium;
+    return Math.round((HEIGHT - hTotal) / 2) + 24 + gap;
+}
+
+function zoneChampPseudo() {
+    const pad = 22;
+    return {
+        x: pad,
+        y: yChampPseudoAccueil(),
+        w: WIDTH - pad * 2,
+        h: 34,
+    };
+}
+
+function pointDansZone(point, zone) {
+    return point.x >= zone.x && point.x <= zone.x + zone.w
+        && point.y >= zone.y && point.y <= zone.y + zone.h;
+}
+
+function filtrerPseudo(valeur) {
+    return valeur.replace(/[^a-zA-Z0-9 _-]/g, "").slice(0, PSEUDO_MAX);
+}
+
+function mettreAJourChampPseudoInput() {
+    if (!pseudoInput) return;
+
+    if (phase !== "accueil") {
+        pseudoInput.classList.remove("visible");
+        pseudoInput.blur();
+        return;
+    }
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const wrapRect = canvas.parentElement.getBoundingClientRect();
+    const zone = zoneChampPseudo();
+    const scaleX = canvasRect.width / WIDTH;
+    const scaleY = canvasRect.height / HEIGHT;
+
+    pseudoInput.style.left = (canvasRect.left - wrapRect.left + zone.x * scaleX) + "px";
+    pseudoInput.style.top = (canvasRect.top - wrapRect.top + zone.y * scaleY) + "px";
+    pseudoInput.style.width = (zone.w * scaleX) + "px";
+    pseudoInput.style.height = (zone.h * scaleY) + "px";
+    pseudoInput.style.fontSize = Math.max(10, 12 * scaleY) + "px";
+    pseudoInput.classList.add("visible");
+
+    if (document.activeElement !== pseudoInput) {
+        pseudoInput.value = pseudo;
+    }
+}
+
+function focusChampPseudo() {
+    if (!pseudoInput || phase !== "accueil") return;
+    mettreAJourChampPseudoInput();
+    pseudoInput.focus();
+    if (pseudoInput.setSelectionRange) {
+        const fin = pseudoInput.value.length;
+        pseudoInput.setSelectionRange(fin, fin);
+    }
+}
+
 function dessinerChampPseudo(yHaut) {
     const pad = 22;
     const boxW = WIDTH - pad * 2;
     const boxH = 34;
     const x = pad;
     const y = yHaut;
+    const inputActif = pseudoInput && document.activeElement === pseudoInput;
 
     ctx.fillStyle = "#543847";
     ctx.fillRect(x - 2, y - 2, boxW + 4, boxH + 4);
     ctx.fillStyle = "#fff5cc";
     ctx.fillRect(x, y, boxW, boxH);
+
+    // Text is typed in the HTML input on phone (and when the input is focused)
+    if (inputActif) {
+        ctx.textAlign = "left";
+        return;
+    }
 
     const texte = pseudoActuel();
     ctx.font = "12px " + FONT_PIXEL;
@@ -771,18 +840,6 @@ function dessinerDeblocageSkin() {
     ctx.restore();
 }
 
-function dessinerScorePassage() {
-    if (Date.now() >= scoreAfficheFin) return;
-
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.font = "28px " + FONT_PIXEL;
-    ctx.fillStyle = "#fff";
-    ctx.fillText(formaterScore(score), Math.round(WIDTH / 2), Math.round(HEIGHT - 32));
-    ctx.restore();
-}
-
 function dessinerBestScore() {
     const cx = WIDTH / 2;
     const cy = HEIGHT / 2;
@@ -825,21 +882,27 @@ function ecranAccueil() {
     const gap = 16;
     const hChamp = 34;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_MAX);
-    const hTotal = 24 + gap + hChamp + gap + 13 + gap + 13 + gap + hPodium;
+    const extraTouch = TOUCH_DEVICE ? gap + 13 : 0;
+    const hTotal = 24 + gap + hChamp + gap + 13 + gap + 13 + extraTouch + gap + hPodium;
     let y = Math.round((HEIGHT - hTotal) / 2);
 
     y += 24;
     dessinerTexte("FLAPPY BIRD", WIDTH / 2, y, 16, "#fff", true);
     y += gap;
-    dessinerChampPseudo(y);
+    dessinerChampPseudo(yChampPseudoAccueil());
     y += hChamp + gap + 13;
-    dessinerTexte("Entree pour jouer", WIDTH / 2, y, 8, "#543847", true, false);
+    dessinerTexte(TOUCH_DEVICE ? "Tape ton pseudo" : "Entree pour jouer", WIDTH / 2, y, 8, "#543847", true, false);
     y += gap + 13;
+    if (TOUCH_DEVICE) {
+        dessinerTexte("OK sur le clavier pour jouer", WIDTH / 2, y, 7, "#8a7f5c", true, false);
+        y += gap + 13;
+    }
     dessinerTexte("3 vies", WIDTH / 2, y, 8, "#e86101", true, false);
     y += gap + 15;
     dessinerEmojiEtTexte("🏆", "PODIUM", WIDTH / 2, y, 10, "#543847", 4);
     y += 10;
     dessinerPodiumCanvas(PODIUM_MAX, y);
+    mettreAJourChampPseudoInput();
 }
 
 function ecranSkins() {
@@ -990,7 +1053,6 @@ function dessiner() {
     }
 
     dessinerDeblocageSkin();
-    dessinerScorePassage();
 }
 
 // --- Update ---
@@ -1071,14 +1133,15 @@ function gererSaisiePseudo(e) {
         const char = e.key;
         if (/^[a-zA-Z0-9 _-]$/.test(char)) {
             e.preventDefault();
-            pseudo += char;
+            pseudo = filtrerPseudo(pseudo + char);
         }
     }
 }
 
 function allerChoixSkin() {
     if (!peutDemarrer()) return;
-    pseudo = pseudoActuel();
+    pseudo = filtrerPseudo(pseudoInput ? pseudoInput.value : pseudo);
+    if (pseudoInput) pseudoInput.blur();
     localStorage.setItem(PSEUDO_KEY, pseudo);
     const saved = localStorage.getItem(SKIN_KEY);
     const idx = SKINS.findIndex((s) => s.id === saved);
@@ -1137,7 +1200,6 @@ function retourAccueil() {
     nouveauBestScore = false;
     skinDebloquePopup = null;
     skinDebloqueFin = 0;
-    scoreAfficheFin = 0;
     messageNourrirVisible = false;
     mode = "normal";
     canvas.focus();
@@ -1152,6 +1214,14 @@ function coordCanvasDepuisEvent(e) {
 }
 
 canvas.addEventListener("click", (e) => {
+    if (phase === "accueil") {
+        const p = coordCanvasDepuisEvent(e);
+        if (pointDansZone(p, zoneChampPseudo())) {
+            focusChampPseudo();
+        }
+        return;
+    }
+
     canvas.focus();
     if (phase === "skins") {
         const p = coordCanvasDepuisEvent(e);
@@ -1167,6 +1237,20 @@ canvas.addEventListener("click", (e) => {
 });
 
 canvas.addEventListener("touchstart", (e) => {
+    if (phase === "accueil") {
+        const touch = e.changedTouches[0];
+        const rect = canvas.getBoundingClientRect();
+        const p = {
+            x: (touch.clientX - rect.left) * (WIDTH / rect.width),
+            y: (touch.clientY - rect.top) * (HEIGHT / rect.height),
+        };
+        if (pointDansZone(p, zoneChampPseudo())) {
+            e.preventDefault();
+            focusChampPseudo();
+        }
+        return;
+    }
+
     if (phase !== "jeu") return;
     e.preventDefault();
     canvas.focus();
@@ -1220,4 +1304,24 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
+if (pseudoInput) {
+    pseudoInput.addEventListener("input", () => {
+        pseudo = filtrerPseudo(pseudoInput.value);
+        pseudoInput.value = pseudo;
+    });
+
+    pseudoInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            allerChoixSkin();
+        }
+    });
+
+    pseudoInput.addEventListener("blur", () => {
+        pseudo = filtrerPseudo(pseudoInput.value);
+        pseudoInput.value = pseudo;
+    });
+}
+
+window.addEventListener("resize", mettreAJourChampPseudoInput);
 canvas.focus();
