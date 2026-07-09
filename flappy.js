@@ -706,7 +706,7 @@ function mettreAJourChampPseudoInput() {
     pseudoInput.style.top = (zone.y / HEIGHT * 100) + "%";
     pseudoInput.style.width = (zone.w / WIDTH * 100) + "%";
     pseudoInput.style.height = (zone.h / HEIGHT * 100) + "%";
-    pseudoInput.style.fontSize = Math.max(10, 12 * scaleY) + "px";
+    pseudoInput.style.fontSize = Math.max(16, 12 * scaleY) + "px";
     pseudoInput.style.lineHeight = (zone.h * scaleY) + "px";
     pseudoInput.classList.add("visible");
 
@@ -731,18 +731,11 @@ function dessinerChampPseudo(yHaut) {
     const boxH = 34;
     const x = pad;
     const y = yHaut;
-    const inputActif = pseudoInput && document.activeElement === pseudoInput;
 
     ctx.fillStyle = "#543847";
     ctx.fillRect(x - 2, y - 2, boxW + 4, boxH + 4);
     ctx.fillStyle = "#fff5cc";
     ctx.fillRect(x, y, boxW, boxH);
-
-    // Text is typed in the HTML input on phone (and when the input is focused)
-    if (inputActif) {
-        ctx.textAlign = "left";
-        return;
-    }
 
     const texte = pseudoActuel();
     ctx.font = "12px " + FONT_PIXEL;
@@ -1244,7 +1237,6 @@ canvas.addEventListener("touchstart", (e) => {
             y: (touch.clientY - rect.top) * (HEIGHT / rect.height),
         };
         if (pointDansZone(p, zoneChampPseudo())) {
-            e.preventDefault();
             focusChampPseudo();
         }
         return;
@@ -1262,6 +1254,8 @@ function demarrerPartie() {
 
 document.addEventListener("keydown", (e) => {
     if (phase === "accueil") {
+        // Let the HTML input handle typing when the keyboard is open
+        if (document.activeElement === pseudoInput) return;
         gererSaisiePseudo(e);
         return;
     }
@@ -1307,6 +1301,13 @@ if (pseudoInput) {
     pseudoInput.addEventListener("input", () => {
         pseudo = filtrerPseudo(pseudoInput.value);
         pseudoInput.value = pseudo;
+    });
+
+    pseudoInput.addEventListener("beforeinput", () => {
+        requestAnimationFrame(() => {
+            pseudo = filtrerPseudo(pseudoInput.value);
+            pseudoInput.value = pseudo;
+        });
     });
 
     pseudoInput.addEventListener("keydown", (e) => {

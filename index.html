@@ -37,24 +37,28 @@
             display: block;
         }
 
-        /* Real input so the phone keyboard opens on the home screen */
+        /* Invisible overlay: canvas draws the text, input only opens the keyboard */
         #pseudo-input {
             position: absolute;
             left: 0;
             top: 0;
+            z-index: 5;
             display: none;
             border: none;
             outline: none;
             text-align: center;
             font-family: "Press Start 2P", monospace;
-            color: #543847;
+            font-size: 16px;
+            color: transparent;
+            caret-color: transparent;
             background: transparent;
             padding: 0 8px;
             margin: 0;
             box-sizing: border-box;
-            opacity: 0;
-            -webkit-user-select: text;
-            user-select: text;
+            opacity: 1;
+            -webkit-user-select: text !important;
+            user-select: text !important;
+            -webkit-touch-callout: default;
             touch-action: manipulation;
         }
 
@@ -62,12 +66,8 @@
             display: block;
         }
 
-        #pseudo-input:focus {
-            opacity: 1;
-        }
-
         #pseudo-input::placeholder {
-            color: #b3a97a;
+            color: transparent;
         }
     </style>
 </head>
@@ -82,7 +82,7 @@
             enterkeyhint="go"
             spellcheck="false"
             autocapitalize="off"
-            placeholder="Ton pseudo"
+            placeholder=""
         >
     </div>
     <script src="flappy.js"></script>
