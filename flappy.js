@@ -936,6 +936,28 @@ function ecranAccueil() {
     mettreAJourChampPseudoInput();
 }
 
+// Top of the bird preview on the skins screen (same math as ecranSkins)
+function boxYSkins() {
+    const z = zoneNourrirSkins();
+    const gap = 14;
+    const hPreview = 80;
+    const hTotal = z.h + 12 + 18 + gap + hPreview + gap + 16 + gap + 12 + gap + 12 + gap + 12;
+    return Math.round((HEIGHT - hTotal) / 2) + z.h + 8 + gap;
+}
+
+// Touch zones on the skins screen
+function zoneFlecheGauche() {
+    return { x: 0, y: boxYSkins() - 10, w: 70, h: 100 };
+}
+
+function zoneFlecheDroite() {
+    return { x: WIDTH - 70, y: boxYSkins() - 10, w: 70, h: 100 };
+}
+
+function zoneOiseauSkins() {
+    return { x: 70, y: boxYSkins() - 10, w: WIDTH - 140, h: 100 };
+}
+
 function ecranSkins() {
     dessinerPanneauPixel();
     assurerSkinDebloque();
@@ -958,6 +980,10 @@ function ecranSkins() {
     const boxY = y;
     dessinerOiseauCentre(boxY + hPreview / 2, 2.5);
 
+    // Arrows to change skin (tap or click)
+    dessinerTexte("<", 34, boxY + hPreview / 2 + 8, 20, "#543847", true, false);
+    dessinerTexte(">", WIDTH - 34, boxY + hPreview / 2 + 8, 20, "#543847", true, false);
+
     y += hPreview + gap + 16;
     dessinerTexte(skin.nom, WIDTH / 2, y, 12, "#543847", true, false);
     y += gap + 12;
@@ -969,7 +995,7 @@ function ecranSkins() {
     }
     dessinerTexte("< > pour changer", WIDTH / 2, y, 8, "#543847", true, false);
     y += gap + 12;
-    dessinerTexte("ESPACE pour jouer", WIDTH / 2, y, 8, "#4ba828", true, false);
+    dessinerTexte(TOUCH_DEVICE ? "Tape l'oiseau pour jouer" : "ESPACE pour jouer", WIDTH / 2, y, 8, "#4ba828", true, false);
 
     const dotY = y + 20;
     const dotSpacing = 14;
@@ -990,11 +1016,11 @@ function ecranSkins() {
         ctx.fillRect(14, HEIGHT / 2 - 46, WIDTH - 28, 92);
         ctx.fillStyle = "#fff5cc";
         ctx.fillRect(17, HEIGHT / 2 - 43, WIDTH - 34, 86);
-        dessinerTexte('APPUYER SUR "F"', WIDTH / 2, HEIGHT / 2 - 24, 8, "#e86101", true, false);
+        dessinerTexte(TOUCH_DEVICE ? "TAPE ICI" : 'APPUYER SUR "F"', WIDTH / 2, HEIGHT / 2 - 24, 8, "#e86101", true, false);
         dessinerTexte("POUR NOURRIR", WIDTH / 2, HEIGHT / 2 - 10, 8, "#543847", true, false);
         dessinerTexte("TON OISEAU", WIDTH / 2, HEIGHT / 2 + 4, 8, "#543847", true, false);
         dessinerTexte("(" + COUT_NOURRIR + " gemmes)", WIDTH / 2, HEIGHT / 2 + 18, 7, "#8a7f5c", true, false);
-        dessinerTexte("puis F pour confirmer", WIDTH / 2, HEIGHT / 2 + 32, 7, "#8a7f5c", true, false);
+        dessinerTexte(TOUCH_DEVICE ? "tape a cote pour annuler" : "puis F pour confirmer", WIDTH / 2, HEIGHT / 2 + 32, 7, "#8a7f5c", true, false);
         dessinerBarreNourrir(true);
     }
 
@@ -1256,6 +1282,36 @@ function coordCanvasDepuisEvent(e) {
     };
 }
 
+// One tap/click on the skins screen: arrows, bird, feed bar
+function gererTapSkins(p) {
+    if (messageNourrirVisible) {
+        const panneau = { x: 14, y: HEIGHT / 2 - 46, w: WIDTH - 28, h: 92 };
+        if (pointDansZone(p, panneau)) {
+            nourrirOiseau();
+        } else {
+            messageNourrirVisible = false;
+        }
+        return;
+    }
+
+    const z = zoneNourrirSkins();
+    if (pointDansZone(p, z)) {
+        messageNourrirVisible = true;
+        return;
+    }
+    if (pointDansZone(p, zoneFlecheGauche())) {
+        changerSkin(-1);
+        return;
+    }
+    if (pointDansZone(p, zoneFlecheDroite())) {
+        changerSkin(1);
+        return;
+    }
+    if (pointDansZone(p, zoneOiseauSkins())) {
+        confirmerSkin();
+    }
+}
+
 canvas.addEventListener("click", (e) => {
     if (phase === "accueil") {
         const p = coordCanvasDepuisEvent(e);
@@ -1272,11 +1328,7 @@ canvas.addEventListener("click", (e) => {
 
     canvas.focus();
     if (phase === "skins") {
-        const p = coordCanvasDepuisEvent(e);
-        const z = zoneNourrirSkins();
-        if (p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h) {
-            messageNourrirVisible = true;
-        }
+        gererTapSkins(coordCanvasDepuisEvent(e));
         return;
     }
     if (phase === "jeu") {
@@ -1299,7 +1351,20 @@ canvas.addEventListener("touchstart", (e) => {
     }
 
     if (phase === "mort") {
+        // preventDefault stops the extra "click" event from firing too
+        e.preventDefault();
         gererTapMort();
+        return;
+    }
+
+    if (phase === "skins") {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        const rect = canvas.getBoundingClientRect();
+        gererTapSkins({
+            x: (touch.clientX - rect.left) * (WIDTH / rect.width),
+            y: (touch.clientY - rect.top) * (HEIGHT / rect.height),
+        });
         return;
     }
 
