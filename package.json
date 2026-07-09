@@ -1,0 +1,13 @@
+{
+  "name": "flappy-bird-marlow",
+  "private": true,
+  "scripts": {
+    "start": "serve -l tcp://0.0.0.0:8000 .",
+    "dev": "live-server --port=8000 --host=0.0.0.0 --open=/ --watch=.",
+    "open": "open index.html"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "serve": "^14.2.4"
+  }
+}
