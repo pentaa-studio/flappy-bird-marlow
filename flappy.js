@@ -698,17 +698,16 @@ function mettreAJourChampPseudoInput() {
         return;
     }
 
-    const canvasRect = canvas.getBoundingClientRect();
-    const wrapRect = canvas.parentElement.getBoundingClientRect();
     const zone = zoneChampPseudo();
-    const scaleX = canvasRect.width / WIDTH;
-    const scaleY = canvasRect.height / HEIGHT;
+    const scaleY = canvas.clientHeight / HEIGHT;
 
-    pseudoInput.style.left = (canvasRect.left - wrapRect.left + zone.x * scaleX) + "px";
-    pseudoInput.style.top = (canvasRect.top - wrapRect.top + zone.y * scaleY) + "px";
-    pseudoInput.style.width = (zone.w * scaleX) + "px";
-    pseudoInput.style.height = (zone.h * scaleY) + "px";
+    // Position inside #jeu-wrap with canvas percentages (stable on phone)
+    pseudoInput.style.left = (zone.x / WIDTH * 100) + "%";
+    pseudoInput.style.top = (zone.y / HEIGHT * 100) + "%";
+    pseudoInput.style.width = (zone.w / WIDTH * 100) + "%";
+    pseudoInput.style.height = (zone.h / HEIGHT * 100) + "%";
     pseudoInput.style.fontSize = Math.max(10, 12 * scaleY) + "px";
+    pseudoInput.style.lineHeight = (zone.h * scaleY) + "px";
     pseudoInput.classList.add("visible");
 
     if (document.activeElement !== pseudoInput) {
@@ -1321,7 +1320,15 @@ if (pseudoInput) {
         pseudo = filtrerPseudo(pseudoInput.value);
         pseudoInput.value = pseudo;
     });
+
+    pseudoInput.addEventListener("focus", () => {
+        setTimeout(mettreAJourChampPseudoInput, 50);
+    });
 }
 
 window.addEventListener("resize", mettreAJourChampPseudoInput);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", mettreAJourChampPseudoInput);
+    window.visualViewport.addEventListener("scroll", mettreAJourChampPseudoInput);
+}
 canvas.focus();

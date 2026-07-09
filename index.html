@@ -40,6 +40,8 @@
         /* Real input so the phone keyboard opens on the home screen */
         #pseudo-input {
             position: absolute;
+            left: 0;
+            top: 0;
             display: none;
             border: none;
             outline: none;
@@ -48,7 +50,9 @@
             color: #543847;
             background: transparent;
             padding: 0 8px;
+            margin: 0;
             box-sizing: border-box;
+            opacity: 0;
             -webkit-user-select: text;
             user-select: text;
             touch-action: manipulation;
@@ -56,6 +60,10 @@
 
         #pseudo-input.visible {
             display: block;
+        }
+
+        #pseudo-input:focus {
+            opacity: 1;
         }
 
         #pseudo-input::placeholder {
