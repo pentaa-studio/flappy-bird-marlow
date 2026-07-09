@@ -133,6 +133,11 @@ let nourrirFeedbackFin = 0;
 let nourrirErreurFin = 0;
 let nourrirErreurMsg = "";
 
+// Skins grid overlay (tap your bird to open it)
+let listeSkinsVisible = false;
+let cellulesSkins = [];
+let zoneJouerSkins = null;
+
 let tuyaux = [];
 
 // --- Secret modes (A / Z / E / R) ---
@@ -993,11 +998,19 @@ function ecranSkins() {
         dessinerTexte(prochain.nom + " a " + prochain.scoreDeblocage + " pts", WIDTH / 2, y, 7, "#e86101", true, false);
         y += gap + 12;
     }
-    dessinerTexte("< > pour changer", WIDTH / 2, y, 8, "#543847", true, false);
+    dessinerTexte(TOUCH_DEVICE ? "Tape ton oiseau: tous les skins" : "Clic oiseau: tous les skins", WIDTH / 2, y, 7, "#543847", true, false);
     y += gap + 12;
-    dessinerTexte(TOUCH_DEVICE ? "Tape l'oiseau pour jouer" : "ESPACE pour jouer", WIDTH / 2, y, 8, "#4ba828", true, false);
 
-    const dotY = y + 20;
+    // JOUER button (tap/click, or SPACE on desktop)
+    const btn = { x: WIDTH / 2 - 60, y: y - 10, w: 120, h: 30 };
+    zoneJouerSkins = btn;
+    ctx.fillStyle = "#543847";
+    ctx.fillRect(btn.x - 2, btn.y - 2, btn.w + 4, btn.h + 4);
+    ctx.fillStyle = "#4ba828";
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+    dessinerTexte("JOUER", WIDTH / 2, btn.y + 20, 10, "#fff", true);
+
+    const dotY = btn.y + btn.h + 16;
     const dotSpacing = 14;
     const dotsW = (SKINS.length - 1) * dotSpacing;
     SKINS.forEach((s, i) => {
@@ -1007,6 +1020,11 @@ function ecranSkins() {
         ctx.fillStyle = !debloque ? "#b3a97a" : i === skinIndex ? "#e86101" : "#543847";
         ctx.fillRect(dx - taille / 2, dotY - taille / 2, taille, taille);
     });
+
+    // Grid with every skin (locked ones greyed out)
+    if (listeSkinsVisible) {
+        dessinerListeSkins();
+    }
 
     // Feed instruction overlay
     if (messageNourrirVisible) {
@@ -1031,6 +1049,58 @@ function ecranSkins() {
     if (nourrirFeedbackFin > Date.now()) {
         dessinerTexte("Ameliore! Nv." + lireNiveau(), WIDTH / 2, HEIGHT - 58, 8, "#4ba828", true, false);
     }
+}
+
+// Full-screen grid with every skin (locked ones are greyed out)
+function dessinerListeSkins() {
+    cellulesSkins = [];
+
+    ctx.fillStyle = "rgba(84, 56, 71, 0.92)";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    dessinerTexte("TOUS LES SKINS", WIDTH / 2, 32, 10, "#fff", true);
+
+    const cols = 3;
+    const cellW = 88;
+    const cellH = 78;
+    const x0 = Math.round((WIDTH - cols * cellW) / 2);
+    const y0 = 48;
+
+    SKINS.forEach((skin, i) => {
+        const col = i % cols;
+        const ligne = Math.floor(i / cols);
+        const cx = x0 + col * cellW;
+        const cy = y0 + ligne * cellH;
+        const debloque = skinEstDebloque(skin);
+
+        // Orange border for the selected skin
+        ctx.fillStyle = i === skinIndex ? "#e86101" : "#543847";
+        ctx.fillRect(cx + 3, cy + 3, cellW - 6, cellH - 6);
+        ctx.fillStyle = debloque ? "#fff5cc" : "#9c9480";
+        ctx.fillRect(cx + 6, cy + 6, cellW - 12, cellH - 12);
+
+        // Bird sprite, faded when locked
+        const img = images[skin.sprite + "-milieu"];
+        const scale = 1.4;
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.save();
+        if (!debloque) ctx.globalAlpha = 0.35;
+        ctx.drawImage(img, cx + cellW / 2 - w / 2, cy + 14, w, h);
+        ctx.restore();
+
+        if (debloque) {
+            dessinerTexte(skin.nom, cx + cellW / 2, cy + cellH - 14, 6, "#543847", true, false);
+        } else {
+            dessinerTexte(skin.scoreDeblocage + " pts", cx + cellW / 2, cy + cellH - 14, 6, "#3d3d3d", true, false);
+        }
+
+        cellulesSkins.push({ x: cx, y: cy, w: cellW, h: cellH, index: i, debloque: debloque });
+    });
+
+    const aide = TOUCH_DEVICE ? "Tape un oiseau pour le choisir" : "Clique un oiseau pour le choisir";
+    dessinerTexte(aide, WIDTH / 2, HEIGHT - 42, 6, "#fff5cc", true, false);
+    dessinerTexte(TOUCH_DEVICE ? "tape a cote pour fermer" : "Echap pour fermer", WIDTH / 2, HEIGHT - 26, 6, "#ded895", true, false);
 }
 
 function ecranGameOver() {
@@ -1205,6 +1275,7 @@ function allerChoixSkin() {
     skinIndex = idx >= 0 ? idx : 0;
     assurerSkinDebloque();
     messageNourrirVisible = false;
+    listeSkinsVisible = false;
     phase = "skins";
     canvas.focus();
 }
@@ -1212,6 +1283,7 @@ function allerChoixSkin() {
 function confirmerSkin() {
     assurerSkinDebloque();
     localStorage.setItem(SKIN_KEY, SKINS[skinIndex].id);
+    listeSkinsVisible = false;
     phase = "jeu";
     scoreEnregistre = false;
     resetPartie();
@@ -1227,6 +1299,11 @@ function gererChoixSkin(e) {
     if (e.key === "Escape" && messageNourrirVisible) {
         e.preventDefault();
         messageNourrirVisible = false;
+        return;
+    }
+    if (e.key === "Escape" && listeSkinsVisible) {
+        e.preventDefault();
+        listeSkinsVisible = false;
         return;
     }
     if (messageNourrirVisible) return;
@@ -1282,7 +1359,7 @@ function coordCanvasDepuisEvent(e) {
     };
 }
 
-// One tap/click on the skins screen: arrows, bird, feed bar
+// One tap/click on the skins screen: arrows, bird, grid, play button, feed bar
 function gererTapSkins(p) {
     if (messageNourrirVisible) {
         const panneau = { x: 14, y: HEIGHT / 2 - 46, w: WIDTH - 28, h: 92 };
@@ -1291,6 +1368,21 @@ function gererTapSkins(p) {
         } else {
             messageNourrirVisible = false;
         }
+        return;
+    }
+
+    // Grid open: pick an unlocked skin, or close by tapping outside
+    if (listeSkinsVisible) {
+        for (const cellule of cellulesSkins) {
+            if (pointDansZone(p, cellule)) {
+                if (cellule.debloque) {
+                    skinIndex = cellule.index;
+                    listeSkinsVisible = false;
+                }
+                return;
+            }
+        }
+        listeSkinsVisible = false;
         return;
     }
 
@@ -1307,8 +1399,12 @@ function gererTapSkins(p) {
         changerSkin(1);
         return;
     }
-    if (pointDansZone(p, zoneOiseauSkins())) {
+    if (zoneJouerSkins && pointDansZone(p, zoneJouerSkins)) {
         confirmerSkin();
+        return;
+    }
+    if (pointDansZone(p, zoneOiseauSkins())) {
+        listeSkinsVisible = true;
     }
 }
 
