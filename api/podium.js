@@ -8,6 +8,11 @@ const BLOB_PATH = "podium.json";
 const PODIUM_MAX = 5;
 const PSEUDO_MAX = 12;
 
+// "Marlow", "MARLOW" and "marlow" are the same player
+function memeNom(a, b) {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 // Read the current podium from the blob (empty list if none yet)
 async function lirePodiumBlob() {
     const { blobs } = await list({ prefix: BLOB_PATH, limit: 1 });
@@ -52,9 +57,10 @@ module.exports = async (req, res) => {
         }
 
         let podium = await lirePodiumBlob();
-        const index = podium.findIndex((entry) => entry.nom === nomPropre);
+        const index = podium.findIndex((entry) => memeNom(entry.nom, nomPropre));
 
         if (index >= 0) {
+            // Same player: keep the best score and the first spelling
             if (scorePropre > podium[index].score) {
                 podium[index].score = scorePropre;
             }

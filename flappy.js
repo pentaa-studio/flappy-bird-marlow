@@ -213,18 +213,23 @@ function pseudoActuel() {
     return pseudo.trim().slice(0, PSEUDO_MAX);
 }
 
+// Lowercase storage key so MARLOW and marlow share gems and level
+function clePseudo() {
+    return pseudoActuel().toLowerCase();
+}
+
 function skinActif() {
     return SKINS[skinIndex];
 }
 
 function lireMaxDeblocage() {
-    const nom = pseudoActuel();
+    const nom = clePseudo();
     if (!nom) return 0;
     return parseFloat(localStorage.getItem(UNLOCK_KEY + "_" + nom) || "0") || 0;
 }
 
 function sauverMaxDeblocage(valeur) {
-    const nom = pseudoActuel();
+    const nom = clePseudo();
     if (!nom) return;
     const ancien = lireMaxDeblocage();
     if (valeur > ancien) {
@@ -238,20 +243,20 @@ function recordPourDeblocage() {
 
 // --- Gems and bird level ---
 function lireGemmes() {
-    const nom = pseudoActuel();
+    const nom = clePseudo();
     if (!nom) return 0;
     return parseInt(localStorage.getItem(GEMMES_KEY + "_" + nom) || "0", 10) || 0;
 }
 
 function ajouterGemmes(combien) {
-    const nom = pseudoActuel();
+    const nom = clePseudo();
     if (!nom) return;
     localStorage.setItem(GEMMES_KEY + "_" + nom, String(lireGemmes() + combien));
     if (combien > 0) gemmesGagneesPartie += combien;
 }
 
 function lireNiveau() {
-    const nom = pseudoActuel();
+    const nom = clePseudo();
     if (!nom) return 0;
     return parseInt(localStorage.getItem(NIVEAU_KEY + "_" + nom) || "0", 10) || 0;
 }
@@ -268,8 +273,8 @@ function nourrirOiseau() {
         nourrirErreurFin = Date.now() + 2000;
         return false;
     }
-    localStorage.setItem(NIVEAU_KEY + "_" + pseudoActuel(), String(niveau + 1));
-    localStorage.setItem(GEMMES_KEY + "_" + pseudoActuel(), String(lireGemmes() - COUT_NOURRIR));
+    localStorage.setItem(NIVEAU_KEY + "_" + clePseudo(), String(niveau + 1));
+    localStorage.setItem(GEMMES_KEY + "_" + clePseudo(), String(lireGemmes() - COUT_NOURRIR));
     nourrirFeedbackFin = Date.now() + 2000;
     messageNourrirVisible = false;
     return true;
@@ -410,10 +415,15 @@ function changerSkin(direction) {
     skinIndex = SKINS.findIndex((s) => s.id === debloques[idx].id);
 }
 
+// "Marlow", "MARLOW" and "marlow" are the same player
+function memeNom(a, b) {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 function meilleurScoreJoueur() {
     const nom = pseudoActuel();
     if (!nom) return 0;
-    const joueur = lirePodium().find((entry) => entry.nom === nom);
+    const joueur = lirePodium().find((entry) => memeNom(entry.nom, nom));
     return joueur ? joueur.score : 0;
 }
 
@@ -431,9 +441,10 @@ function enregistrerAuPodium() {
     if (!nom || meilleur <= 0) return;
 
     let podium = lirePodium();
-    const index = podium.findIndex((entry) => entry.nom === nom);
+    const index = podium.findIndex((entry) => memeNom(entry.nom, nom));
 
     if (index >= 0) {
+        // Same player: keep the best score and the first spelling
         if (meilleur > podium[index].score) {
             podium[index].score = meilleur;
         }
