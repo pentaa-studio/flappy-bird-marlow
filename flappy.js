@@ -865,6 +865,12 @@ function dessinerBestScore() {
     ctx.fillStyle = "#e86101";
     ctx.fillText("BEST SCORE", cx, cy + 76);
 
+    if (TOUCH_DEVICE) {
+        dessinerTexte("Tape pour continuer", cx, cy + 108, 7, "#543847", true, false);
+    } else {
+        dessinerTexte("Espace pour continuer", cx, cy + 108, 7, "#543847", true, false);
+    }
+
     ctx.restore();
 }
 
@@ -993,7 +999,7 @@ function ecranGameOver() {
     y += 10;
     dessinerPodiumCanvas(PODIUM_MAX, y);
     y += hauteurBlocPodium(PODIUM_MAX) + gap + 13;
-    dessinerTexte("ESPACE pour rejouer", WIDTH / 2, y, 8, "#4ba828", true, false);
+    dessinerTexte(TOUCH_DEVICE ? "Tape pour rejouer" : "ESPACE pour rejouer", WIDTH / 2, y, 8, "#4ba828", true, false);
 
     if (nouveauBestScore) {
         dessinerBestScore();
@@ -1182,6 +1188,18 @@ function gererChoixSkin(e) {
     }
 }
 
+function fermerBestScore() {
+    nouveauBestScore = false;
+}
+
+function gererTapMort() {
+    if (nouveauBestScore) {
+        fermerBestScore();
+        return;
+    }
+    retourAccueil();
+}
+
 function retourAccueil() {
     phase = "accueil";
     score = 0;
@@ -1214,6 +1232,11 @@ canvas.addEventListener("click", (e) => {
         return;
     }
 
+    if (phase === "mort") {
+        gererTapMort();
+        return;
+    }
+
     canvas.focus();
     if (phase === "skins") {
         const p = coordCanvasDepuisEvent(e);
@@ -1239,6 +1262,11 @@ canvas.addEventListener("touchstart", (e) => {
         if (pointDansZone(p, zoneChampPseudo())) {
             focusChampPseudo();
         }
+        return;
+    }
+
+    if (phase === "mort") {
+        gererTapMort();
         return;
     }
 
@@ -1275,7 +1303,11 @@ document.addEventListener("keydown", (e) => {
     if (e.key === " ") {
         e.preventDefault();
         if (phase === "mort") {
-            retourAccueil();
+            if (nouveauBestScore) {
+                fermerBestScore();
+            } else {
+                retourAccueil();
+            }
             return;
         }
         if (phase === "jeu") {
