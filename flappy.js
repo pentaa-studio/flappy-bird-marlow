@@ -138,6 +138,10 @@ let listeSkinsVisible = false;
 let cellulesSkins = [];
 let zoneJouerSkins = null;
 
+// Clickable buttons on the menus
+let zoneJouerAccueil = null;
+let zoneRejouer = null;
+
 let tuyaux = [];
 
 // --- Secret modes (A / Z / E / R) ---
@@ -702,10 +706,19 @@ function dessinerPanneauPixel(fond) {
 function yChampPseudoAccueil() {
     const gap = 16;
     const hChamp = 34;
+    const hBtn = 30;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_MAX);
-    const extraTouch = TOUCH_DEVICE ? gap + 13 : 0;
-    const hTotal = 24 + gap + hChamp + gap + 13 + gap + 13 + extraTouch + gap + hPodium;
+    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 13 + gap + hPodium;
     return Math.round((HEIGHT - hTotal) / 2) + 24 + gap;
+}
+
+// Pixel-style button, greyed out when disabled
+function dessinerBouton(zone, texte, actif) {
+    ctx.fillStyle = "#543847";
+    ctx.fillRect(zone.x - 2, zone.y - 2, zone.w + 4, zone.h + 4);
+    ctx.fillStyle = actif ? "#4ba828" : "#b3a97a";
+    ctx.fillRect(zone.x, zone.y, zone.w, zone.h);
+    dessinerTexte(texte, zone.x + zone.w / 2, zone.y + 20, 10, "#fff", true);
 }
 
 function zoneChampPseudo() {
@@ -917,22 +930,22 @@ function ecranAccueil() {
 
     const gap = 16;
     const hChamp = 34;
+    const hBtn = 30;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_MAX);
-    const extraTouch = TOUCH_DEVICE ? gap + 13 : 0;
-    const hTotal = 24 + gap + hChamp + gap + 13 + gap + 13 + extraTouch + gap + hPodium;
+    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 13 + gap + hPodium;
     let y = Math.round((HEIGHT - hTotal) / 2);
 
     y += 24;
     dessinerTexte("FLAPPY BIRD", WIDTH / 2, y, 16, "#fff", true);
     y += gap;
     dessinerChampPseudo(yChampPseudoAccueil());
-    y += hChamp + gap + 13;
-    dessinerTexte(TOUCH_DEVICE ? "Tape ton pseudo" : "Entree pour jouer", WIDTH / 2, y, 8, "#543847", true, false);
-    y += gap + 13;
-    if (TOUCH_DEVICE) {
-        dessinerTexte("OK sur le clavier pour jouer", WIDTH / 2, y, 7, "#8a7f5c", true, false);
-        y += gap + 13;
-    }
+    y += hChamp + gap;
+
+    // JOUER button (greyed out until a nickname is typed)
+    zoneJouerAccueil = { x: WIDTH / 2 - 60, y: y, w: 120, h: hBtn };
+    dessinerBouton(zoneJouerAccueil, "JOUER", peutDemarrer());
+
+    y += hBtn + gap + 13;
     dessinerTexte("3 vies", WIDTH / 2, y, 8, "#e86101", true, false);
     y += gap + 15;
     dessinerEmojiEtTexte("🏆", "PODIUM", WIDTH / 2, y, 10, "#543847", 4);
@@ -1004,11 +1017,7 @@ function ecranSkins() {
     // JOUER button (tap/click, or SPACE on desktop)
     const btn = { x: WIDTH / 2 - 60, y: y - 10, w: 120, h: 30 };
     zoneJouerSkins = btn;
-    ctx.fillStyle = "#543847";
-    ctx.fillRect(btn.x - 2, btn.y - 2, btn.w + 4, btn.h + 4);
-    ctx.fillStyle = "#4ba828";
-    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
-    dessinerTexte("JOUER", WIDTH / 2, btn.y + 20, 10, "#fff", true);
+    dessinerBouton(btn, "JOUER", true);
 
     const dotY = btn.y + btn.h + 16;
     const dotSpacing = 14;
@@ -1107,8 +1116,9 @@ function ecranGameOver() {
     dessinerPanneauPixel("nuit");
 
     const gap = 14;
+    const hBtn = 30;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_MAX);
-    const hTotal = 22 + gap + 16 + gap + 16 + gap + 15 + gap + hPodium + gap + 13;
+    const hTotal = 22 + gap + 16 + gap + 16 + gap + 15 + gap + hPodium + gap + hBtn;
     let y = Math.round((HEIGHT - hTotal) / 2);
 
     y += 22;
@@ -1127,8 +1137,11 @@ function ecranGameOver() {
     dessinerEmojiEtTexte("🏆", "PODIUM", WIDTH / 2, y, 10, "#543847", 4);
     y += 10;
     dessinerPodiumCanvas(PODIUM_MAX, y);
-    y += hauteurBlocPodium(PODIUM_MAX) + gap + 13;
-    dessinerTexte(TOUCH_DEVICE ? "Tape pour rejouer" : "ESPACE pour rejouer", WIDTH / 2, y, 8, "#4ba828", true, false);
+    y += hauteurBlocPodium(PODIUM_MAX) + gap;
+
+    // REJOUER button (tap/click, or SPACE on desktop)
+    zoneRejouer = { x: WIDTH / 2 - 70, y: y, w: 140, h: hBtn };
+    dessinerBouton(zoneRejouer, "REJOUER", true);
 
     if (nouveauBestScore) {
         dessinerBestScore();
@@ -1413,6 +1426,10 @@ canvas.addEventListener("click", (e) => {
         const p = coordCanvasDepuisEvent(e);
         if (pointDansZone(p, zoneChampPseudo())) {
             focusChampPseudo();
+            return;
+        }
+        if (zoneJouerAccueil && pointDansZone(p, zoneJouerAccueil)) {
+            allerChoixSkin();
         }
         return;
     }
@@ -1442,6 +1459,12 @@ canvas.addEventListener("touchstart", (e) => {
         };
         if (pointDansZone(p, zoneChampPseudo())) {
             focusChampPseudo();
+            return;
+        }
+        if (zoneJouerAccueil && pointDansZone(p, zoneJouerAccueil)) {
+            // preventDefault stops the extra "click" event from firing too
+            e.preventDefault();
+            allerChoixSkin();
         }
         return;
     }
