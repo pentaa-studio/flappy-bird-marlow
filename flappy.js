@@ -165,12 +165,39 @@ function formaterScore(valeur) {
 }
 
 // --- Podium ---
+// The podium is shared between all players via /api/podium (Vercel Blob).
+// localStorage keeps a copy so the game still works offline.
 function lirePodium() {
     try {
         return JSON.parse(localStorage.getItem(PODIUM_KEY) || "[]");
     } catch {
         return [];
     }
+}
+
+function sauverPodiumLocal(podium) {
+    if (!Array.isArray(podium)) return;
+    localStorage.setItem(PODIUM_KEY, JSON.stringify(podium));
+}
+
+// Fetch the shared podium and refresh the local copy
+function chargerPodiumGlobal() {
+    fetch("/api/podium")
+        .then((reponse) => reponse.json())
+        .then(sauverPodiumLocal)
+        .catch(() => {});
+}
+
+// Send a score to the shared podium (the server returns the new top list)
+function envoyerScoreGlobal(nom, score) {
+    fetch("/api/podium", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nom: nom, score: score }),
+    })
+        .then((reponse) => reponse.json())
+        .then(sauverPodiumLocal)
+        .catch(() => {});
 }
 
 function pseudoActuel() {
@@ -409,6 +436,9 @@ function enregistrerAuPodium() {
     podium = podium.slice(0, PODIUM_MAX);
     localStorage.setItem(PODIUM_KEY, JSON.stringify(podium));
     localStorage.setItem(PSEUDO_KEY, nom);
+
+    // Also share the score with everyone
+    envoyerScoreGlobal(nom, meilleur);
 }
 
 function finDePartie() {
@@ -445,6 +475,9 @@ function chargerImage(nom) {
 const chargerFont = document.fonts
     ? document.fonts.load('10px "Press Start 2P"').catch(() => {})
     : Promise.resolve();
+
+// Load the shared podium in the background (no need to wait for it)
+chargerPodiumGlobal();
 
 Promise.all([...nomsImages.map(chargerImage), chargerFont]).then(boucle).catch(() => {
     ctx.fillStyle = "#c00";

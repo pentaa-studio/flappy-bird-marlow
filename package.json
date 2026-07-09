@@ -6,6 +6,9 @@
     "dev": "live-server --port=8000 --host=0.0.0.0 --open=/ --watch=.",
     "open": "open index.html"
   },
+  "dependencies": {
+    "@vercel/blob": "^2.0.0"
+  },
   "devDependencies": {
     "live-server": "^1.2.2",
     "serve": "^14.2.4"
