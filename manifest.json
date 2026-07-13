@@ -1,0 +1,16 @@
+{
+    "name": "Flappy Bird by Marlow",
+    "short_name": "Flappy Bird",
+    "start_url": "/",
+    "display": "fullscreen",
+    "orientation": "portrait",
+    "background_color": "#000000",
+    "theme_color": "#70c5ce",
+    "icons": [
+        {
+            "src": "apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        }
+    ]
+}

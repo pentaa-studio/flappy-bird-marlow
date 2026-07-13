@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
     <title>Flappy Bird by Marlow</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <!-- Safari needs a PNG for the home screen icon -->
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -36,8 +39,12 @@
             line-height: 0;
         }
 
+        /* Fill the screen while keeping the 288x512 ratio, crisp pixels */
         #jeu {
             display: block;
+            width: min(100vw, calc(100dvh * 288 / 512));
+            height: auto;
+            image-rendering: pixelated;
         }
 
         /* Invisible overlay: canvas draws the text, input only opens the keyboard */
