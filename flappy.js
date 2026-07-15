@@ -720,7 +720,7 @@ function yChampPseudoAccueil() {
     const hBtn = 30;
     const hBtnVoir = 24;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_APERCU) + gap + hBtnVoir;
-    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 13 + gap + hPodium;
+    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 15 + hPodium;
     return Math.round((HEIGHT - hTotal) / 2) + 24 + gap;
 }
 
@@ -1034,7 +1034,7 @@ function ecranAccueil() {
     const hBtn = 30;
     const hBtnVoir = 24;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_APERCU) + gap + hBtnVoir;
-    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 13 + gap + hPodium;
+    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 15 + hPodium;
     let y = Math.round((HEIGHT - hTotal) / 2);
 
     y += 24;
@@ -1047,9 +1047,7 @@ function ecranAccueil() {
     zoneJouerAccueil = { x: WIDTH / 2 - 60, y: y, w: 120, h: hBtn };
     dessinerBouton(zoneJouerAccueil, "JOUER", peutDemarrer());
 
-    y += hBtn + gap + 13;
-    dessinerTexte("3 vies", WIDTH / 2, y, 8, "#e86101", true, false);
-    y += gap + 15;
+    y += hBtn + gap + 15;
     dessinerEmojiEtTexte("🏆", "PODIUM", WIDTH / 2, y, 10, "#543847", 4);
     y += 10;
     dessinerPodiumCanvas(PODIUM_APERCU, y);
