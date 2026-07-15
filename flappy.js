@@ -301,18 +301,10 @@ function gererToucheNourrir() {
     nourrirOiseau();
 }
 
-function graviteEffective() {
-    return GRAVITE * (1 - lireNiveau() * 0.03);
-}
-
-function forceFlap() {
-    return FLAP_FORCE * (1 + lireNiveau() * 0.05);
-}
-
 function flap() {
     // Same pattern as FlappySwift: reset vertical speed, then flap impulse
     oiseauVY = 0;
-    oiseauVY = forceFlap();
+    oiseauVY = FLAP_FORCE;
 }
 
 function inclinaisonOiseau() {
@@ -1175,7 +1167,7 @@ function ecranSkins() {
     }
 
     if (nourrirFeedbackFin > Date.now()) {
-        dessinerTexte("Ameliore! Nv." + lireNiveau(), WIDTH / 2, HEIGHT - 58, 8, "#4ba828", true, false);
+        dessinerTexte("Nv." + lireNiveau() + " (+1 vie)", WIDTH / 2, HEIGHT - 58, 7, "#4ba828", true, false);
     }
 }
 
@@ -1327,7 +1319,7 @@ function dessiner() {
 function mettreAJour(dt) {
     if (phase !== "jeu") return;
 
-    oiseauVY += graviteEffective() * dt;
+    oiseauVY += GRAVITE * dt;
     if (oiseauVY > VITESSE_MAX_CHUTE) oiseauVY = VITESSE_MAX_CHUTE;
     oiseauY += oiseauVY * dt;
 
