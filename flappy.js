@@ -140,7 +140,14 @@ let zoneJouerSkins = null;
 
 // Clickable buttons on the menus
 let zoneJouerAccueil = null;
+let zoneSkinsAccueil = null;
 let zoneRejouer = null;
+let zoneMenu = null;
+let zoneRetourSkins = null;
+
+// Game feel: white flash on hit, input lock on game over
+let flashFin = 0;
+let mortDepuis = 0;
 
 let tuyaux = [];
 
@@ -292,6 +299,63 @@ function gererToucheNourrir() {
     nourrirOiseau();
 }
 
+// --- Sounds (tiny 8-bit beeps generated live, no audio files) ---
+let audioCtx = null;
+
+function jouerSon(type) {
+    try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "square";
+
+        if (type === "flap") {
+            osc.frequency.setValueAtTime(500, t);
+            osc.frequency.exponentialRampToValueAtTime(900, t + 0.06);
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+            osc.start(t);
+            osc.stop(t + 0.09);
+        } else if (type === "point") {
+            osc.frequency.setValueAtTime(880, t);
+            osc.frequency.setValueAtTime(1320, t + 0.08);
+            gain.gain.setValueAtTime(0.06, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            osc.start(t);
+            osc.stop(t + 0.2);
+        } else if (type === "hit") {
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(300, t);
+            osc.frequency.exponentialRampToValueAtTime(60, t + 0.25);
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+            osc.start(t);
+            osc.stop(t + 0.32);
+        } else if (type === "gagne") {
+            osc.frequency.setValueAtTime(523, t);
+            osc.frequency.setValueAtTime(659, t + 0.1);
+            osc.frequency.setValueAtTime(784, t + 0.2);
+            gain.gain.setValueAtTime(0.06, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+            osc.start(t);
+            osc.stop(t + 0.5);
+        } else if (type === "bouton") {
+            osc.frequency.setValueAtTime(700, t);
+            gain.gain.setValueAtTime(0.04, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+            osc.start(t);
+            osc.stop(t + 0.06);
+        }
+    } catch {
+        // No sound available: the game still works
+    }
+}
+
 function graviteEffective() {
     return GRAVITE * (1 - lireNiveau() * 0.03);
 }
@@ -304,6 +368,7 @@ function flap() {
     // Same pattern as FlappySwift: reset vertical speed, then flap impulse
     oiseauVY = 0;
     oiseauVY = forceFlap();
+    jouerSon("flap");
 }
 
 function inclinaisonOiseau() {
@@ -393,6 +458,7 @@ function verifierNouveauxSkins(ancienMax, nouveauMax) {
         skinDebloquePopup = nouveau;
         skinDebloqueFin = Date.now() + SKIN_POPUP_DUREE;
         ajouterGemmes(1);
+        jouerSon("gagne");
     }
 }
 
@@ -402,6 +468,7 @@ function ajouterScore(points) {
     scoreMaxPartie = Math.max(scoreMaxPartie, score);
     sauverMaxDeblocage(scoreMaxPartie);
     verifierNouveauxSkins(ancienMax, scoreMaxPartie);
+    jouerSon("point");
 }
 
 function changerSkin(direction) {
@@ -471,6 +538,8 @@ function finDePartie() {
         ajouterGemmes(1);
     }
     phase = "mort";
+    // Short input lock so a panic tap does not restart the game
+    mortDepuis = Date.now();
     enregistrerAuPodium();
 }
 
@@ -557,11 +626,29 @@ function perdreVie() {
         finDePartie();
         return;
     }
+    // Back to the ready screen with the remaining hearts
     score = 0;
     nouveauBestScore = false;
     oiseauY = HEIGHT / 4;
     oiseauVY = 0;
     reinitialiserTuyaux();
+    phase = "pret";
+}
+
+// Hit a pipe or the screen edge: flash, sound, then the bird falls
+function toucherObstacle() {
+    jouerSon("hit");
+    flashFin = Date.now() + 120;
+    if (oiseauVY < 0) oiseauVY = 0;
+    phase = "chute";
+}
+
+// Start a new game with the current skin ("get ready" screen first)
+function rejouer() {
+    scoreEnregistre = false;
+    resetPartie();
+    phase = "pret";
+    canvas.focus();
 }
 
 function rectsCollident(ax, ay, aw, ah, bx, by, bw, bh) {
@@ -719,7 +806,7 @@ function yChampPseudoAccueil() {
     const hChamp = 34;
     const hBtn = 30;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_MAX);
-    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 13 + gap + hPodium;
+    const hTotal = 24 + gap + hChamp + gap + hBtn + 12 + hBtn + gap + hPodium;
     return Math.round((HEIGHT - hTotal) / 2) + 24 + gap;
 }
 
@@ -943,7 +1030,7 @@ function ecranAccueil() {
     const hChamp = 34;
     const hBtn = 30;
     const hPodium = 15 + 10 + hauteurBlocPodium(PODIUM_MAX);
-    const hTotal = 24 + gap + hChamp + gap + hBtn + gap + 13 + gap + hPodium;
+    const hTotal = 24 + gap + hChamp + gap + hBtn + 12 + hBtn + gap + hPodium;
     let y = Math.round((HEIGHT - hTotal) / 2);
 
     y += 24;
@@ -955,14 +1042,20 @@ function ecranAccueil() {
     // JOUER button (greyed out until a nickname is typed)
     zoneJouerAccueil = { x: WIDTH / 2 - 60, y: y, w: 120, h: hBtn };
     dessinerBouton(zoneJouerAccueil, "JOUER", peutDemarrer());
+    y += hBtn + 12;
 
-    y += hBtn + gap + 13;
-    dessinerTexte("3 vies", WIDTH / 2, y, 8, "#e86101", true, false);
-    y += gap + 15;
+    // Secondary button to pick a skin
+    zoneSkinsAccueil = { x: WIDTH / 2 - 60, y: y, w: 120, h: hBtn };
+    ctx.fillStyle = "#543847";
+    ctx.fillRect(zoneSkinsAccueil.x - 2, zoneSkinsAccueil.y - 2, zoneSkinsAccueil.w + 4, zoneSkinsAccueil.h + 4);
+    ctx.fillStyle = "#e86101";
+    ctx.fillRect(zoneSkinsAccueil.x, zoneSkinsAccueil.y, zoneSkinsAccueil.w, zoneSkinsAccueil.h);
+    dessinerTexte("OISEAU", WIDTH / 2, zoneSkinsAccueil.y + 20, 10, "#fff", true);
+
+    y += hBtn + gap + 15;
     dessinerEmojiEtTexte("🏆", "PODIUM", WIDTH / 2, y, 10, "#543847", 4);
     y += 10;
     dessinerPodiumCanvas(PODIUM_MAX, y);
-    mettreAJourChampPseudoInput();
 }
 
 // Top of the bird preview on the skins screen (same math as ecranSkins)
@@ -1040,6 +1133,14 @@ function ecranSkins() {
         ctx.fillStyle = !debloque ? "#b3a97a" : i === skinIndex ? "#e86101" : "#543847";
         ctx.fillRect(dx - taille / 2, dotY - taille / 2, taille, taille);
     });
+
+    // Back to the home screen
+    zoneRetourSkins = { x: 8, y: HEIGHT - 36, w: 84, h: 26 };
+    ctx.fillStyle = "#543847";
+    ctx.fillRect(zoneRetourSkins.x - 2, zoneRetourSkins.y - 2, zoneRetourSkins.w + 4, zoneRetourSkins.h + 4);
+    ctx.fillStyle = "#8a7f5c";
+    ctx.fillRect(zoneRetourSkins.x, zoneRetourSkins.y, zoneRetourSkins.w, zoneRetourSkins.h);
+    dessinerTexte("RETOUR", zoneRetourSkins.x + zoneRetourSkins.w / 2, zoneRetourSkins.y + 17, 8, "#fff", true);
 
     // Grid with every skin (locked ones greyed out)
     if (listeSkinsVisible) {
@@ -1150,9 +1251,15 @@ function ecranGameOver() {
     dessinerPodiumCanvas(PODIUM_MAX, y);
     y += hauteurBlocPodium(PODIUM_MAX) + gap;
 
-    // REJOUER button (tap/click, or SPACE on desktop)
-    zoneRejouer = { x: WIDTH / 2 - 70, y: y, w: 140, h: hBtn };
+    // REJOUER restarts right away, MENU goes back home
+    zoneRejouer = { x: WIDTH / 2 - 124, y: y, w: 140, h: hBtn };
     dessinerBouton(zoneRejouer, "REJOUER", true);
+    zoneMenu = { x: WIDTH / 2 + 24, y: y, w: 100, h: hBtn };
+    ctx.fillStyle = "#543847";
+    ctx.fillRect(zoneMenu.x - 2, zoneMenu.y - 2, zoneMenu.w + 4, zoneMenu.h + 4);
+    ctx.fillStyle = "#8a7f5c";
+    ctx.fillRect(zoneMenu.x, zoneMenu.y, zoneMenu.w, zoneMenu.h);
+    dessinerTexte("MENU", zoneMenu.x + zoneMenu.w / 2, zoneMenu.y + 20, 10, "#fff", true);
 
     if (nouveauBestScore) {
         dessinerBestScore();
@@ -1162,6 +1269,9 @@ function ecranGameOver() {
 // --- Draw ---
 function dessiner() {
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+    // Keeps the nickname input in place, and hides it outside the home screen
+    mettreAJourChampPseudoInput();
 
     if (phase === "accueil") {
         ecranAccueil();
@@ -1180,7 +1290,12 @@ function dessiner() {
 
     ctx.drawImage(images["fond-jour"], 0, 0, WIDTH, HEIGHT);
 
-    dessinerOiseauCentre(oiseauY, 1, inclinaisonOiseau());
+    // On the ready screen the bird floats gently up and down
+    const yOiseau = phase === "pret"
+        ? oiseauY + Math.sin(Date.now() / 250) * 5
+        : oiseauY;
+    const rotation = phase === "chute" ? Math.min(1.2, oiseauVY * 0.004) : inclinaisonOiseau();
+    dessinerOiseauCentre(yOiseau, 1, rotation);
 
     const tuyauBas = images["tuyau-vert-bas"];
     const tuyauHaut = images["tuyau-vert-haut"];
@@ -1195,19 +1310,50 @@ function dessiner() {
     // Big centered score at the top, like the original
     dessinerTexte(formaterScore(score), WIDTH / 2, 52, 24, "#fff", true);
 
-    dessinerTexte("Vies " + vies, 10, 24, 8, "#fff", false);
-    dessinerTexte("Record " + formaterScore(meilleurScoreJoueur()), 10, 42, 8, "#fff", false);
+    // Hearts for the remaining lives
+    ctx.font = "12px " + FONT_EMOJI;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    for (let i = 0; i < vies; i++) {
+        ctx.fillText("❤️", 10 + i * 16, 26);
+    }
+    dessinerTexte("Record " + formaterScore(meilleurScoreJoueur()), 10, 44, 8, "#fff", false);
 
     const infoMode = libelleMode();
     if (infoMode) {
         dessinerTexte(infoMode.texte, 10, 64, 8, infoMode.couleur, false);
     }
 
+    // Get ready screen: the game waits for the first tap
+    if (phase === "pret") {
+        dessinerTexte("PRET ?", WIDTH / 2, HEIGHT / 2 - 60, 20, "#fff", true);
+        if (Math.floor(Date.now() / 500) % 2 === 0) {
+            dessinerTexte(TOUCH_DEVICE ? "Tape pour voler" : "Espace pour voler", WIDTH / 2, HEIGHT / 2 + 70, 9, "#fff", true);
+        }
+    }
+
     dessinerDeblocageSkin();
+
+    // White flash right after a hit
+    if (flashFin > Date.now()) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
 }
 
 // --- Update ---
 function mettreAJour(dt) {
+    // Falling after a hit: pipes stop, the bird drops out of the screen
+    if (phase === "chute") {
+        oiseauVY += graviteEffective() * dt;
+        if (oiseauVY > VITESSE_MAX_CHUTE) oiseauVY = VITESSE_MAX_CHUTE;
+        oiseauY += oiseauVY * dt;
+        if (oiseauY > HEIGHT + 40) {
+            perdreVie();
+        }
+        return;
+    }
+
     if (phase !== "jeu") return;
 
     oiseauVY += graviteEffective() * dt;
@@ -1235,7 +1381,7 @@ function mettreAJour(dt) {
             rectsCollident(ox, oy, dim.w, dim.h, tuyau.x, 0, tW, tuyau.gapTop) ||
             rectsCollident(ox, oy, dim.w, dim.h, tuyau.x, basY, tW, HEIGHT - basY)
         ) {
-            perdreVie();
+            toucherObstacle();
             return;
         }
 
@@ -1246,7 +1392,7 @@ function mettreAJour(dt) {
     }
 
     if (oiseauY < 0 || oiseauY > HEIGHT) {
-        perdreVie();
+        toucherObstacle();
     }
 }
 
@@ -1276,7 +1422,7 @@ function gererSaisiePseudo(e) {
 
     if (e.key === "Enter") {
         e.preventDefault();
-        allerChoixSkin();
+        demarrerDepuisAccueil();
         return;
     }
 
@@ -1289,8 +1435,9 @@ function gererSaisiePseudo(e) {
     }
 }
 
-function allerChoixSkin() {
-    if (!peutDemarrer()) return;
+// Validate the nickname and restore the saved skin
+function validerPseudo() {
+    if (!peutDemarrer()) return false;
     pseudo = filtrerPseudo(pseudoInput ? pseudoInput.value : pseudo);
     if (pseudoInput) pseudoInput.blur();
     localStorage.setItem(PSEUDO_KEY, pseudo);
@@ -1298,20 +1445,35 @@ function allerChoixSkin() {
     const idx = SKINS.findIndex((s) => s.id === saved);
     skinIndex = idx >= 0 ? idx : 0;
     assurerSkinDebloque();
+    return true;
+}
+
+// JOUER on the home screen: straight to the ready screen
+function demarrerDepuisAccueil() {
+    if (!validerPseudo()) return;
+    rejouer();
+}
+
+// OISEAU on the home screen: open the skins screen
+function allerChoixSkin() {
+    if (!validerPseudo()) return;
     messageNourrirVisible = false;
     listeSkinsVisible = false;
     phase = "skins";
     canvas.focus();
 }
 
+// First tap on the ready screen starts the game
+function demarrerVol() {
+    phase = "jeu";
+    flap();
+}
+
 function confirmerSkin() {
     assurerSkinDebloque();
     localStorage.setItem(SKIN_KEY, SKINS[skinIndex].id);
     listeSkinsVisible = false;
-    phase = "jeu";
-    scoreEnregistre = false;
-    resetPartie();
-    canvas.focus();
+    rejouer();
 }
 
 function gererChoixSkin(e) {
@@ -1328,6 +1490,11 @@ function gererChoixSkin(e) {
     if (e.key === "Escape" && listeSkinsVisible) {
         e.preventDefault();
         listeSkinsVisible = false;
+        return;
+    }
+    if (e.key === "Escape") {
+        e.preventDefault();
+        retourAccueil();
         return;
     }
     if (messageNourrirVisible) return;
@@ -1352,12 +1519,23 @@ function fermerBestScore() {
     nouveauBestScore = false;
 }
 
-function gererTapMort() {
+function gererTapMort(p) {
+    // Ignore taps just after dying (avoids restarting by accident)
+    if (Date.now() - mortDepuis < 600) return;
+
     if (nouveauBestScore) {
         fermerBestScore();
         return;
     }
-    retourAccueil();
+    if (p && zoneRejouer && pointDansZone(p, zoneRejouer)) {
+        jouerSon("bouton");
+        rejouer();
+        return;
+    }
+    if (p && zoneMenu && pointDansZone(p, zoneMenu)) {
+        jouerSon("bouton");
+        retourAccueil();
+    }
 }
 
 function retourAccueil() {
@@ -1371,6 +1549,7 @@ function retourAccueil() {
     skinDebloquePopup = null;
     skinDebloqueFin = 0;
     messageNourrirVisible = false;
+    listeSkinsVisible = false;
     mode = "normal";
     canvas.focus();
 }
@@ -1424,7 +1603,13 @@ function gererTapSkins(p) {
         return;
     }
     if (zoneJouerSkins && pointDansZone(p, zoneJouerSkins)) {
+        jouerSon("bouton");
         confirmerSkin();
+        return;
+    }
+    if (zoneRetourSkins && pointDansZone(p, zoneRetourSkins)) {
+        jouerSon("bouton");
+        retourAccueil();
         return;
     }
     if (pointDansZone(p, zoneOiseauSkins())) {
@@ -1440,13 +1625,19 @@ canvas.addEventListener("click", (e) => {
             return;
         }
         if (zoneJouerAccueil && pointDansZone(p, zoneJouerAccueil)) {
+            jouerSon("bouton");
+            demarrerDepuisAccueil();
+            return;
+        }
+        if (zoneSkinsAccueil && pointDansZone(p, zoneSkinsAccueil)) {
+            jouerSon("bouton");
             allerChoixSkin();
         }
         return;
     }
 
     if (phase === "mort") {
-        gererTapMort();
+        gererTapMort(coordCanvasDepuisEvent(e));
         return;
     }
 
@@ -1455,19 +1646,26 @@ canvas.addEventListener("click", (e) => {
         gererTapSkins(coordCanvasDepuisEvent(e));
         return;
     }
+    if (phase === "pret") {
+        demarrerVol();
+        return;
+    }
     if (phase === "jeu") {
         flap();
     }
 });
 
+function coordCanvasDepuisTouch(touch) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (touch.clientX - rect.left) * (WIDTH / rect.width),
+        y: (touch.clientY - rect.top) * (HEIGHT / rect.height),
+    };
+}
+
 canvas.addEventListener("touchstart", (e) => {
     if (phase === "accueil") {
-        const touch = e.changedTouches[0];
-        const rect = canvas.getBoundingClientRect();
-        const p = {
-            x: (touch.clientX - rect.left) * (WIDTH / rect.width),
-            y: (touch.clientY - rect.top) * (HEIGHT / rect.height),
-        };
+        const p = coordCanvasDepuisTouch(e.changedTouches[0]);
         if (pointDansZone(p, zoneChampPseudo())) {
             focusChampPseudo();
             return;
@@ -1475,6 +1673,13 @@ canvas.addEventListener("touchstart", (e) => {
         if (zoneJouerAccueil && pointDansZone(p, zoneJouerAccueil)) {
             // preventDefault stops the extra "click" event from firing too
             e.preventDefault();
+            jouerSon("bouton");
+            demarrerDepuisAccueil();
+            return;
+        }
+        if (zoneSkinsAccueil && pointDansZone(p, zoneSkinsAccueil)) {
+            e.preventDefault();
+            jouerSon("bouton");
             allerChoixSkin();
         }
         return;
@@ -1483,18 +1688,20 @@ canvas.addEventListener("touchstart", (e) => {
     if (phase === "mort") {
         // preventDefault stops the extra "click" event from firing too
         e.preventDefault();
-        gererTapMort();
+        gererTapMort(coordCanvasDepuisTouch(e.changedTouches[0]));
         return;
     }
 
     if (phase === "skins") {
         e.preventDefault();
-        const touch = e.changedTouches[0];
-        const rect = canvas.getBoundingClientRect();
-        gererTapSkins({
-            x: (touch.clientX - rect.left) * (WIDTH / rect.width),
-            y: (touch.clientY - rect.top) * (HEIGHT / rect.height),
-        });
+        gererTapSkins(coordCanvasDepuisTouch(e.changedTouches[0]));
+        return;
+    }
+
+    if (phase === "pret") {
+        e.preventDefault();
+        canvas.focus();
+        demarrerVol();
         return;
     }
 
@@ -1503,10 +1710,6 @@ canvas.addEventListener("touchstart", (e) => {
     canvas.focus();
     flap();
 }, { passive: false });
-
-function demarrerPartie() {
-    confirmerSkin();
-}
 
 document.addEventListener("keydown", (e) => {
     if (phase === "accueil") {
@@ -1531,11 +1734,16 @@ document.addEventListener("keydown", (e) => {
     if (e.key === " ") {
         e.preventDefault();
         if (phase === "mort") {
+            if (Date.now() - mortDepuis < 600) return;
             if (nouveauBestScore) {
                 fermerBestScore();
             } else {
-                retourAccueil();
+                rejouer();
             }
+            return;
+        }
+        if (phase === "pret") {
+            demarrerVol();
             return;
         }
         if (phase === "jeu") {
@@ -1546,6 +1754,18 @@ document.addEventListener("keydown", (e) => {
             }
             return;
         }
+        return;
+    }
+
+    if (e.key === "Escape" && phase === "mort") {
+        e.preventDefault();
+        retourAccueil();
+        return;
+    }
+
+    if (phase === "pret" && e.key === "ArrowUp") {
+        e.preventDefault();
+        demarrerVol();
         return;
     }
 
@@ -1573,7 +1793,7 @@ if (pseudoInput) {
     pseudoInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();
-            allerChoixSkin();
+            demarrerDepuisAccueil();
         }
     });
 
