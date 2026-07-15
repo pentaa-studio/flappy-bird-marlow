@@ -5,7 +5,6 @@
 const { put, list } = require("@vercel/blob");
 
 const BLOB_PATH = "podium.json";
-const PODIUM_MAX = 5;
 const PSEUDO_MAX = 12;
 
 // "Marlow", "MARLOW" and "marlow" are the same player
@@ -69,7 +68,6 @@ module.exports = async (req, res) => {
         }
 
         podium.sort((a, b) => b.score - a.score);
-        podium = podium.slice(0, PODIUM_MAX);
 
         await sauverPodiumBlob(podium);
         res.status(200).json(podium);
